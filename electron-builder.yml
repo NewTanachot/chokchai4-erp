@@ -1,0 +1,60 @@
+# Packaging for macOS (.dmg) and Windows (.exe installer).
+# better-sqlite3 v13 ships N-API prebuilt binaries for every platform, so no native rebuild is needed
+# and the Windows installer can be built on a Mac.
+appId: com.chokchai4.erp
+productName: Chokchai 4 Yangyont 2002 ERP
+copyright: Copyright © 2026 โชคชัย 4 ยางยนต์
+directories:
+  output: dist
+  buildResources: build
+# Whitelist of what goes into app.asar. Keep ALL patterns here: a platform-level `files:` list (mac.files /
+# win.files) makes electron-builder fall back to "**/*" and pack the whole repo (.next caches, sources, tests).
+files:
+  - dist-electron/**
+  - out/**
+  - build/icon.png
+  - build/icon-win.png
+  - package.json
+  - "!**/*.map"
+  # better-sqlite3 needs only lib/ + its prebuilt binary at runtime (sources / build-time headers are not used).
+  - "!node_modules/better-sqlite3/{deps,src}{,/**}"
+  - "!node_modules/better-sqlite3/binding.gyp"
+  - "!node_modules/better-sqlite3/prebuilds/linux*"
+  - "!node_modules/node-addon-api{,/**}"
+# Drops the better-sqlite3 prebuilds of the other OS/arch from each package.
+afterPack: scripts/after-pack.cjs
+extraResources:
+  - from: drizzle
+    to: drizzle
+asarUnpack:
+  - node_modules/better-sqlite3/**
+npmRebuild: false
+nodeGypRebuild: false
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.business
+  icon: build/icon.png
+  # No Apple Developer ID: ad-hoc signature ("-"), made AFTER afterPack pruned files. `identity: null` left the arm64
+  # app with Electron's original signature over a modified bundle, so a downloaded copy was reported as "damaged".
+  # First launch still needs right-click > Open (macOS 15+: System Settings > Privacy & Security > Open Anyway).
+  # Hardened runtime is only needed for notarization and breaks ad-hoc apps (library validation).
+  identity: "-"
+  hardenedRuntime: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Same tile with smaller margins (build/icon.png keeps Apple's icon-grid margins for the Dock).
+  icon: build/icon-win.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Chokchai 4 Yangyont 2002 ERP
+  artifactName: Chokchai-4-Yangyont-2002-ERP-Setup-${version}.${ext}
+dmg:
+  artifactName: Chokchai-4-Yangyont-2002-ERP-${version}-${arch}.${ext}
